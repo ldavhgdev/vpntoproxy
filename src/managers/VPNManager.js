@@ -23,6 +23,9 @@ export class VPNManager {
     try {
       this.logger.info(`Initializing VPN with ${this.protocol} protocol...`);
 
+      // Check if VPN config file exists FIRST
+      await this.checkConfigExists();
+
       // Check if VPN tools are installed
       await this.checkDependencies();
 
@@ -39,6 +42,47 @@ export class VPNManager {
     } catch (error) {
       this.logger.error({ error }, 'VPN initialization failed');
       throw error;
+    }
+  }
+
+  async checkConfigExists() {
+    const configPath = this.protocol === 'wireguard'
+      ? '/etc/wireguard/surfshark.conf'
+      : '/etc/openvpn/client/surfshark-default.ovpn';
+
+    try {
+      await fs.access(configPath);
+      this.logger.info(`✅ Config file found: ${configPath}`);
+    } catch {
+      const errorMsg = `
+╔════════════════════════════════════════════════════════════════╗
+║  ❌ VPN CONFIG FILE NOT FOUND                                  ║
+╚════════════════════════════════════════════════════════════════╝
+
+VPN ${this.protocol.toUpperCase()} config file is required to start.
+
+Expected location: ${configPath}
+
+📤 UPLOAD INSTRUCTIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to Web UI: http://YOUR_VPS_IP:3000/upload.html
+
+2. Upload your ${this.protocol.toUpperCase()} config:
+   - For WireGuard: Get from https://my.surfshark.com → Account → VPN Credentials
+   - For OpenVPN: Download from Surfshark support page
+
+3. After uploading, restart the application
+
+4. The VPN will automatically connect on startup
+
+NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+See documentation: /opt/vpn-to-proxy/SURFSHARK_SETUP.md
+      `;
+
+      this.logger.error(errorMsg);
+      throw new Error(`VPN config file not found at ${configPath}`);
     }
   }
 
@@ -82,21 +126,8 @@ export class VPNManager {
 
   async connectWireGuard() {
     try {
-      // Surfshark WireGuard configuration
-      const configDir = '/etc/wireguard';
-      const configFile = path.join(configDir, 'surfshark.conf');
-
-      // Check if config file exists
-      try {
-        await fs.access(configFile);
-        this.logger.info('Using existing WireGuard config file');
-      } catch {
-        this.logger.warn('WireGuard config file not found at ' + configFile);
-        this.logger.info('Please upload WireGuard config using the Web UI');
-        throw new Error('WireGuard config file not found. Please upload it via Web UI.');
-      }
-
-      // Bring up WireGuard interface
+      // Config file is already verified in checkConfigExists()
+      // Just bring up WireGuard interface
       await execAsync('sudo wg-quick up surfshark');
 
       this.logger.info('✅ WireGuard connected');
@@ -108,19 +139,9 @@ export class VPNManager {
 
   async connectOpenVPN() {
     try {
-      // Surfshark OpenVPN configuration
+      // Config file is already verified in checkConfigExists()
       const configDir = '/etc/openvpn/client';
       const configFile = path.join(configDir, `surfshark-${this.currentLocation}.ovpn`);
-
-      // Check if config file exists
-      try {
-        await fs.access(configFile);
-        this.logger.info('Using existing OpenVPN config file');
-      } catch {
-        this.logger.warn('OpenVPN config file not found at ' + configFile);
-        this.logger.info('Please upload OpenVPN config using the Web UI');
-        throw new Error('OpenVPN config file not found. Please upload it via Web UI.');
-      }
 
       // Create credentials file if not exists
       const credsFile = path.join(configDir, 'surfshark-creds.txt');
