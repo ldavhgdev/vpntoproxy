@@ -33,7 +33,6 @@
     "express-rate-limit": "^7.1.5",
     "pino": "^8.17.2",
     "pino-pretty": "^10.2.3",
-    "child-process-promise": "^2.3.0",
     "systeminformation": "^5.18.1"
   },
   "devDependencies": {

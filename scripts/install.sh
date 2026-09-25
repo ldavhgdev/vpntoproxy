@@ -86,10 +86,6 @@ EOF
 echo "Creating system user..."
 useradd -r -M -s /sbin/nologin vpnproxy || true
 
-# Copy application files
-echo "Copying application files..."
-cp -r . $APP_DIR/ || true
-
 # Install dependencies
 echo "Installing Node.js dependencies..."
 cd $APP_DIR
