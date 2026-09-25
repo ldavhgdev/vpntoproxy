@@ -749,6 +749,21 @@ async function handleRequest(req, res) {
       }
       return;
     }
+
+    const logMatch = pathname.match(/^\/api\/tunnels\/(\w+)\/log$/);
+    if (logMatch) {
+      try {
+        const tid = logMatch[1];
+        const logFile = path.join(config.logDir, `${tid}.log`);
+        const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ log }));
+      } catch {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to read log' }));
+      }
+      return;
+    }
   }
 
   // POST requests
