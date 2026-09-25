@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surf Proxy Manager</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232B50C8'/><circle cx='11' cy='16' r='4' fill='white'/><circle cx='21' cy='16' r='4' fill='none' stroke='white' stroke-width='2.5'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F3; --panel:#FFFFFF; --ink:#17212B; --muted:#5B6875; --line:#D5DBE1; --soft:#F5F7F9;
+  --accent:#2B50C8; --accent-ink:#FFFFFF; --ok:#178A55; --warn:#B7791F; --bad:#C0392B; --idle:#9AA5B1;
+  --sans:"Barlow",system-ui,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Semi Condensed","Arial Narrow","Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141B22; --panel:#1C252E; --ink:#E4E9EE; --muted:#93A0AD; --line:#2C3843; --soft:#222C36;
+  --accent:#6F8CF0; --accent-ink:#0E1624; --ok:#3CC58A; --warn:#E0A83E; --bad:#EE6B5E; --idle:#5E6B78;
+  color-scheme:dark;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--sans)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 24px;margin-bottom:18px}
+header h1{font:600 26px/1 var(--cond);margin:0;letter-spacing:.2px}
+.tally{display:flex;gap:18px;color:var(--muted);font-size:14px}
+.tally b{font:600 20px/1 var(--cond);color:var(--ink);margin-right:4px}
+.tally .on b{color:var(--ok)} .tally .off b{color:var(--bad)}
+header .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 13px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:4px 9px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default}
+.icon{width:32px;height:32px;padding:0;display:inline-grid;place-items:center;border-radius:6px;border:1px solid transparent;background:none;cursor:pointer;color:var(--muted)}
+.icon:hover{border-color:var(--line);color:var(--ink);background:var(--soft)}
+.icon svg{width:17px;height:17px}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:0}
+.tabs button{border:0;background:none;padding:9px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+
+.banner{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--warn);padding:12px 16px;border-radius:6px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+.bar{display:flex;gap:8px;align-items:center;padding:10px 0;min-height:52px;flex-wrap:wrap}
+.bar .sel{color:var(--muted);font-size:14px;margin-right:6px}
+.bar input[type=search]{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px;width:220px}
+
+/* Bảng tunnel: mỗi hàng giống 1 cổng trên patch panel */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:28px 18px minmax(150px,1.3fr) 132px 118px minmax(170px,1.2fr) 150px 140px;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.head{background:var(--soft);font-size:12.5px;color:var(--muted);padding-top:8px;padding-bottom:8px}
+.row.picked{background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
+.led{width:11px;height:11px;border-radius:50%;background:var(--idle)}
+.led.online{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.led.starting,.led.recovering{background:var(--warn);animation:blink 1s steps(2) infinite}
+.led.degraded{background:var(--warn)}
+.led.error{background:var(--bad)}
+@keyframes blink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.led{animation:none!important}}
+.name{min-width:0}
+.name strong{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name small{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.port{border:0;background:none;padding:2px 0;text-align:left;cursor:copy;line-height:1.05}
+.port .n{font:600 25px/1 var(--cond);font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.port .p{display:block;font-size:11.5px;color:var(--muted);margin-top:3px}
+.port:hover .n{color:var(--accent)}
+.row.off .port .n{color:var(--muted)}
+.exit{min-width:0}
+.exit .ip{font-variant-numeric:tabular-nums;font-weight:500}
+.exit .cc{display:inline-block;min-width:26px;text-align:center;font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px}
+.exit small{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exit small.err{color:var(--bad);white-space:normal}
+.health{font-size:13px;color:var(--muted)}
+.health b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.ops{display:flex;justify-content:flex-end;gap:2px}
+.empty{padding:34px 28px}
+.empty h2{font:600 21px var(--cond);margin:0 0 6px}
+.empty ol{margin:14px 0 18px;padding-left:20px;line-height:1.9}
+.empty p{color:var(--muted);margin:0;max-width:62ch}
+
+.confs .row{grid-template-columns:minmax(180px,1fr) minmax(200px,1.2fr) 90px minmax(120px,1fr) 90px}
+.key{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+
+/* Hộp thoại */
+dialog{border:1px solid var(--line);border-radius:10px;padding:0;background:var(--panel);color:var(--ink);width:min(620px,94vw);max-height:90vh}
+dialog::backdrop{background:rgba(15,22,30,.45)}
+dialog form,dialog .body{padding:20px 22px}
+dialog h3{font:600 21px var(--cond);margin:0 0 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.grid .full{grid-column:1/-1}
+label{display:block;font-size:13px;color:var(--muted)}
+label > input,label > select,label > textarea{display:block;width:100%;margin-top:4px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 10px;color:var(--ink)}
+label.check{display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:14px}
+label > input[type=checkbox]{display:inline-block;width:auto;flex:none;margin:3px 0 0;padding:0}
+.hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+.picklist{border:1px solid var(--line);border-radius:6px;max-height:190px;overflow:auto;margin-top:4px;background:var(--bg)}
+.picklist label{display:flex;gap:8px;padding:6px 10px;color:var(--ink);font-size:14px;border-top:1px solid var(--line);cursor:pointer}
+.picklist label:first-child{border-top:0}
+.picklist small{color:var(--muted);margin-left:auto}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:26px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+pre.log{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;max-height:52vh;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all;margin:0}
+textarea.out{font:13px/1.5 Consolas,monospace;min-height:190px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:4px}
+.seg button{border:0;background:var(--panel);padding:6px 12px;cursor:pointer;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+
+@media (max-width:900px){
+  .row{grid-template-columns:28px 18px 1fr 1fr;row-gap:6px}
+  .row.head{display:none}
+  .row .name,.row .exit,.row .health{grid-column:3/-1}
+  .row .ps{grid-column:3} .row .ph{grid-column:4}
+  .bar input[type=search]{width:100%;margin-left:0}
+  .row .ops{grid-column:1/-1;justify-content:flex-start}
+  .confs .row{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Surf Proxy Manager</h1>
+    <div class="tally" id="tally"></div>
+    <div class="actions">
+      <button class="btn" data-open="dlgImport">Nạp file .conf</button>
+      <button class="btn primary" data-open="dlgTunnel" id="btnNew">Tạo tunnel</button>
+      <button class="btn" data-open="dlgSettings" aria-label="Cài đặt">Cài đặt</button>
+    </div>
+  </header>
+
+  <div id="banner"></div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="tunnels">Tunnel</button>
+    <button role="tab" aria-selected="false" data-tab="confs">File cấu hình</button>
+  </div>
+
+  <section id="tab-tunnels">
+    <div class="bar">
+      <span class="sel" id="selInfo">Chọn tunnel để thao tác hàng loạt</span>
+      <button class="btn small" data-bulk="start">Bật</button>
+      <button class="btn small" data-bulk="stop">Tắt</button>
+      <button class="btn small" data-bulk="rotate">Đổi IP</button>
+      <button class="btn small" id="btnExport">Xuất cho GPM Login</button>
+      <button class="btn small danger" data-bulk="delete">Xóa</button>
+      <input type="search" id="q" placeholder="Lọc theo tên, cổng, IP, quốc gia">
+    </div>
+    <div class="panel" id="list"></div>
+  </section>
+
+  <section id="tab-confs" hidden>
+    <div class="bar">
+      <span class="sel">File WireGuard tải từ trang quản lý Surfshark. Khóa riêng (PrivateKey) không bao giờ hiển thị ở đây.</span>
+    </div>
+    <div class="panel confs" id="confList"></div>
+  </section>
+</div>
+
+<!-- Nạp file -->
+<dialog id="dlgImport"><div class="body">
+  <h3>Nạp file cấu hình WireGuard</h3>
+  <div class="drop" id="drop" tabindex="0">Kéo thả các file <b>.conf</b> vào đây, hoặc bấm để chọn file<input type="file" id="fileIn" accept=".conf" multiple hidden></div>
+  <label class="check" style="margin-top:14px"><input type="checkbox" id="autoCreate" checked> Tạo luôn mỗi file thành 1 tunnel riêng và bật ngay</label>
+  <p class="hint" id="importMsg"></p>
+  <div class="foot"><button class="btn" data-close>Đóng</button></div>
+</div></dialog>
+
+<!-- Tạo/sửa tunnel -->
+<dialog id="dlgTunnel"><form id="fTunnel" method="dialog">
+  <h3 id="tunnelTitle">Tạo tunnel</h3>
+  <div class="grid">
+    <label class="full">Tên hiển thị<input name="name" placeholder="Tự đặt theo tên file nếu bỏ trống"></label>
+    <div class="full"><label>Vị trí (file cấu hình)</label>
+      <div class="picklist" id="pick"></div>
+      <p class="hint">Chọn nhiều file để tunnel luân phiên giữa các vị trí khi đổi IP.</p></div>
+    <label>Cổng SOCKS5<input name="socks_port" type="number" min="1024" max="65535" placeholder="Tự chọn"></label>
+    <label>Cổng HTTP<input name="http_port" type="number" min="1024" max="65535" placeholder="Tự chọn"></label>
+    <label>Tài khoản proxy<input name="username" autocomplete="off" placeholder="Không bắt buộc"></label>
+    <label>Mật khẩu proxy<input name="password" autocomplete="off"></label>
+    <label>Lắng nghe trên<select name="bind">
+      <option value="127.0.0.1">Chỉ máy này (127.0.0.1)</option>
+      <option value="0.0.0.0">Cả mạng LAN (0.0.0.0) — cần tài khoản</option></select></label>
+    <label>Tự đổi IP sau (phút)<input name="rotate_minutes" type="number" min="0" placeholder="0 = không tự đổi"></label>
+    <label class="check full"><input type="checkbox" name="random_server" checked> Mỗi lần kết nối chọn ngẫu nhiên 1 server khác trong cùng vị trí (để IP thay đổi thật sự)</label>
+    <label class="check full" id="enableRow"><input type="checkbox" name="enabled" checked> Bật ngay sau khi tạo</label>
+  </div>
+  <p class="hint" id="tunnelErr" style="color:var(--bad)"></p>
+  <div class="foot"><button class="btn" type="button" data-close>Hủy</button><button class="btn primary" id="tunnelSave">Tạo tunnel</button></div>
+</form></dialog>
+
+<!-- Xuất -->
+<dialog id="dlgExport"><div class="body">
+  <h3>Xuất danh sách proxy</h3>
+  <div class="grid">
+    <div><label>Giao thức</label><div class="seg" id="segProto"><button data-v="socks5" aria-pressed="true">SOCKS5</button><button data-v="http" aria-pressed="false">HTTP</button></div></div>
+    <label>Định dạng<select id="fmt">
+      <option value="host_port">host:port:user:pass</option>
+      <option value="scheme_colon">socks5://host:port:user:pass</option>
+      <option value="url">socks5://user:pass@host:port</option></select></label>
+    <label class="full">Địa chỉ host trong danh sách<input id="exHost"></label>
+    <label class="full"><textarea class="out" id="exOut" readonly></textarea></label>
+  </div>
+  <p class="hint">GPM Login chạy cùng máy thì dùng 127.0.0.1. Máy khác trong LAN dùng IP LAN của máy này và bật "Cả mạng LAN" cho tunnel.</p>
+  <div class="foot"><button class="btn" data-close>Đóng</button><button class="btn primary" id="exCopy">Sao chép</button></div>
+</div></dialog>
+
+<!-- Cài đặt -->
+<dialog id="dlgSettings"><form id="fSettings" method="dialog">
+  <h3>Cài đặt</h3>
+  <div class="grid">
+    <div class="full" id="wpBox"></div>
+    <label>Kiểm tra kết nối mỗi (giây)<input name="health_interval" type="number" min="10"></label>
+    <label>Tự khởi động lại sau số lần lỗi<input name="fail_threshold" type="number" min="1"></label>
+    <label>Cổng SOCKS5 bắt đầu từ<input name="socks_base" type="number"></label>
+    <label>Cổng HTTP bắt đầu từ<input name="http_base" type="number"></label>
+    <label>Giữ kết nối WireGuard (giây)<input name="keepalive" type="number" min="0"></label>
+    <label>Cổng Web UI<input name="ui_port" type="number"></label>
+    <label class="full">Địa chỉ kiểm tra IP<input name="check_url"></label>
+    <label>Web UI lắng nghe trên<select name="ui_host"><option value="127.0.0.1">Chỉ máy này</option><option value="0.0.0.0">Cả mạng LAN</option></select></label>
+    <label>Mật khẩu Web UI<input name="ui_password" type="password" placeholder="Để trống = giữ nguyên" autocomplete="new-password"></label>
+    <p class="hint full">Đổi cổng hoặc địa chỉ Web UI có hiệu lực sau khi khởi động lại ứng dụng. Mở Web UI ra LAN bắt buộc phải có mật khẩu (tên đăng nhập gõ gì cũng được).</p>
+  </div>
+  <div class="foot">
+    <button class="btn danger" type="button" id="btnQuit" style="margin-right:auto">Thoát ứng dụng</button>
+    <button class="btn" type="button" data-close>Hủy</button><button class="btn primary">Lưu cài đặt</button></div>
+</form></dialog>
+
+<!-- Nhật ký -->
+<dialog id="dlgLog" style="width:min(860px,95vw)"><div class="body">
+  <h3 id="logTitle">Nhật ký</h3>
+  <pre class="log" id="logOut"></pre>
+  <div class="foot"><button class="btn" id="logRefresh">Tải lại</button><button class="btn" data-close>Đóng</button></div>
+</div></dialog>
+
+<div id="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let S={tunnels:[],confs:[],settings:{}}, picked=new Set(), editId=null, logId=null, proto="socks5";
+
+const I={
+ play:'<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+ stop:'<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
+ rot:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+ edit:'<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+ log:'<path d="M6 4h9l4 4v12H6zM9 12h7M9 16h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+ copy:'<rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 4H6a2 2 0 0 0-2 2v10" fill="none" stroke="currentColor" stroke-width="2"/>'
+};
+const ico=(k,label,act,id)=>`<button class="icon" title="${label}" aria-label="${label}" data-act="${act}" data-id="${id}" data-focus="${act}-${id}"><svg viewBox="0 0 24 24">${I[k]}</svg></button>`;
+
+async function api(path,body){
+  const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const ct=r.headers.get("content-type")||"";
+  const d=ct.includes("json")?await r.json():await r.text();
+  if(!r.ok) throw new Error(d.error||r.statusText);
+  return d;
+}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2200)}
+async function copy(txt,msg){try{await navigator.clipboard.writeText(txt)}catch{const a=document.createElement("textarea");a.value=txt;document.body.append(a);a.select();document.execCommand("copy");a.remove()}toast(msg||"Đã sao chép")}
+
+const dur=s=>{if(!s)return"";const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h} giờ ${m} phút`:m?`${m} phút`:`${s} giây`};
+const STATUS={online:"Đang chạy",starting:"Đang kết nối",degraded:"Kết nối chập chờn",recovering:"Đang phục hồi",error:"Lỗi",stopped:"Đã tắt"};
+const proxyStr=(t,p)=>{const h=S.settings.export_host||"127.0.0.1";return `${h}:${p}`+(t.username?`:${t.username}:${t.password}`:"")};
+
+function render(){
+  const T=S.tunnels, on=T.filter(t=>t.status==="online").length, bad=T.filter(t=>["error","degraded","recovering"].includes(t.status)).length;
+  $("#tally").innerHTML=`<span><b>${T.length}</b>tunnel</span><span class="on"><b>${on}</b>đang chạy</span>`+(bad?`<span class="off"><b>${bad}</b>có lỗi</span>`:"");
+
+  const sk=Object.values(S.shared_keys||{}).some(n=>n>1);
+  let ban="";
+  if(!S.wireproxy) ban=`<div class="banner"><span>Chưa có <b>wireproxy</b> — thành phần tạo proxy từ WireGuard. Ứng dụng có thể tự tải bản chính thức từ GitHub.</span><button class="btn primary small" id="dlWp">Tải wireproxy</button></div>`;
+  else if(sk) ban=`<div class="banner"><span>Nhiều tunnel đang dùng chung 1 cặp khóa WireGuard. Ứng dụng tự tránh để 2 tunnel cùng khóa vào chung 1 server, nhưng ổn định nhất là tạo mỗi tunnel 1 cặp khóa riêng trên trang Surfshark.</span></div>`;
+  $("#banner").innerHTML=ban;
+  const dl=$("#dlWp"); if(dl) dl.onclick=downloadWp;
+
+  const q=$("#q").value.trim().toLowerCase();
+  const rows=T.filter(t=>!q||[t.name,t.socks_port,t.http_port,t.ip,t.country,t.active_conf].join(" ").toLowerCase().includes(q));
+  picked.forEach(id=>{if(!T.find(t=>t.id===id))picked.delete(id)});
+  $("#selInfo").textContent=picked.size?`Đã chọn ${picked.size} tunnel`:"Chọn tunnel để thao tác hàng loạt";
+  $$("[data-bulk],#btnExport").forEach(b=>b.disabled=!T.length||(b.dataset.bulk&&!picked.size));
+
+  if(!T.length){
+    $("#list").innerHTML=`<div class="empty"><h2>Chưa có tunnel nào</h2>
+      <ol><li>${S.wireproxy?"Đã có wireproxy ("+esc(S.wireproxy)+")":"Tải wireproxy bằng nút ở trên"}</li>
+      <li>Trên trang Surfshark: VPN → Cài đặt thủ công → Máy tính → WireGuard → tạo cặp khóa rồi tải file .conf của các vị trí bạn cần</li>
+      <li>Bấm <b>Nạp file .conf</b> — mỗi file thành 1 cổng SOCKS5 và 1 cổng HTTP</li></ol>
+      <button class="btn primary" data-open="dlgImport">Nạp file .conf</button></div>`;
+    bindOpeners(); return;
+  }
+  const f=document.activeElement?.dataset?.focus;
+  const all=rows.length&&rows.every(t=>picked.has(t.id));
+  $("#list").innerHTML=`<div class="row head"><input type="checkbox" id="pickAll" ${all?"checked":""} aria-label="Chọn tất cả"><span></span><span>Tunnel</span><span>SOCKS5</span><span>HTTP</span><span>IP ra ngoài</span><span>Tình trạng</span><span></span></div>`+
+  rows.map(t=>{
+    const loc=t.confs.length>1?`${t.active_conf} (${t.confs.indexOf(t.active_conf)+1}/${t.confs.length} vị trí)`:t.active_conf;
+    const sub=t.error?`<small class="err">${esc(t.error)}</small>`:t.ip?`<small>${esc(t.colo?"Cloudflare "+t.colo:"")}${t.endpoint?" qua "+esc(t.endpoint):""}</small>`:`<small>${esc(t.endpoint||"")}</small>`;
+    const rot=t.rotate_minutes?(t.next_rotate!=null?`Đổi IP sau <b>${dur(Math.max(0,t.next_rotate))}</b>`:`Đổi IP mỗi ${t.rotate_minutes} phút`):"";
+    return `<div class="row ${t.running?"":"off"} ${picked.has(t.id)?"picked":""}">
+      <input type="checkbox" data-pick="${t.id}" ${picked.has(t.id)?"checked":""} aria-label="Chọn ${esc(t.name)}">
+      <span class="led ${t.status}" title="${STATUS[t.status]||t.status}"></span>
+      <div class="name"><strong>${esc(t.name)}</strong><small>${esc(loc)}</small></div>
+      <button class="port ps" data-copy="${esc(proxyStr(t,t.socks_port))}" title="Sao chép proxy SOCKS5"><span class="n">${t.socks_port}</span><span class="p">SOCKS5${t.username?" có mật khẩu":""}</span></button>
+      <button class="port ph" data-copy="${esc(proxyStr(t,t.http_port))}" title="Sao chép proxy HTTP"><span class="n">${t.http_port}</span><span class="p">HTTP</span></button>
+      <div class="exit">${t.ip?`<span class="ip">${esc(t.ip)}</span><span class="cc">${esc(t.country)}</span>`:`<span style="color:var(--muted)">${t.running?"Đang lấy IP":"—"}</span>`}${sub}</div>
+      <div class="health"><div>${STATUS[t.status]||t.status}${t.latency!=null?` <b>${t.latency} ms</b>`:""}</div>
+        <div>${t.uptime?"Chạy "+dur(t.uptime):""}</div>${t.restarts?`<div>Tự phục hồi ${t.restarts} lần</div>`:""}${rot?`<div>${rot}</div>`:""}</div>
+      <div class="ops">${t.enabled?ico("stop","Tắt","stop",t.id):ico("play","Bật","start",t.id)}${ico("rot","Đổi IP ngay","rotate",t.id)}${ico("edit","Sửa","edit",t.id)}${ico("log","Nhật ký","log",t.id)}</div>
+    </div>`}).join("");
+  if(f){const el=document.querySelector(`[data-focus="${f}"]`);el&&el.focus()}
+  $("#pickAll").onchange=e=>{rows.forEach(t=>e.target.checked?picked.add(t.id):picked.delete(t.id));render()};
+}
+
+function renderConfs(){
+  const C=S.confs;
+  $("#confList").innerHTML=C.length?`<div class="row head"><span>Tên file</span><span>Server</span><span>Khóa</span><span>Dùng bởi</span><span></span></div>`+
+   C.map(c=>`<div class="row"><strong style="overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</strong><span style="overflow:hidden;text-overflow:ellipsis">${esc(c.endpoint)}</span>
+    <span class="key" title="Dấu vân tay khóa riêng — file cùng dấu dùng chung 1 cặp khóa">#${esc(c.key)}</span>
+    <span style="color:var(--muted);font-size:14px">${c.used_by.length?esc(c.used_by.join(", ")):"Chưa dùng"}</span>
+    <span class="ops"><button class="btn small danger" data-delconf="${esc(c.name)}" ${c.used_by.length?"disabled title='Xóa tunnel đang dùng file này trước'":""}>Xóa</button></span></div>`).join("")
+   :`<div class="empty"><h2>Chưa có file cấu hình</h2><p>Nạp file .conf WireGuard tải từ Surfshark để bắt đầu.</p><br><button class="btn primary" data-open="dlgImport">Nạp file .conf</button></div>`;
+  bindOpeners();
+}
+
+async function refresh(){
+  try{S=await api("/api/state");render();renderConfs()}catch(e){$("#banner").innerHTML=`<div class="banner" style="border-left-color:var(--bad)">Mất kết nối tới ứng dụng: ${esc(e.message)}. Kiểm tra ứng dụng còn chạy không.</div>`}
+}
+
+/* ---- sự kiện ---- */
+function bindOpeners(){$$("[data-open]").forEach(b=>b.onclick=()=>openDlg(b.dataset.open))}
+$$("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
+$$(".tabs button").forEach(b=>b.onclick=()=>{$$(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));$("#tab-tunnels").hidden=b.dataset.tab!=="tunnels";$("#tab-confs").hidden=b.dataset.tab!=="confs"});
+$("#q").oninput=render;
+
+document.addEventListener("click",async e=>{
+  const c=e.target.closest("[data-copy]"); if(c) return copy(c.dataset.copy,"Đã sao chép "+c.dataset.copy);
+  const p=e.target.closest("[data-pick]"); if(p){p.checked?picked.add(p.dataset.pick):picked.delete(p.dataset.pick);return render()}
+  const d=e.target.closest("[data-delconf]"); if(d){if(!confirm("Xóa file "+d.dataset.delconf+"?"))return;try{await api("/api/confs/delete",{name:d.dataset.delconf});refresh()}catch(x){toast(x.message)}return}
+  const a=e.target.closest("[data-act]"); if(!a) return;
+  const id=a.dataset.id, act=a.dataset.act;
+  if(act==="edit") return openTunnel(id);
+  if(act==="log") return openLog(id);
+  try{await api(`/api/tunnels/${id}/${act}`,{});toast({start:"Đã bật",stop:"Đã tắt",rotate:"Đang đổi IP"}[act]);refresh()}catch(x){toast(x.message)}
+});
+$$("[data-bulk]").forEach(b=>b.onclick=async()=>{
+  const act=b.dataset.bulk; if(act==="delete"&&!confirm(`Xóa ${picked.size} tunnel đã chọn?`))return;
+  try{await api("/api/bulk",{action:act,ids:[...picked]});if(act==="delete")picked.clear();toast("Đã gửi lệnh cho "+(picked.size||"các")+" tunnel");refresh()}catch(x){toast(x.message)}
+});
+
+function openDlg(id){
+  if(id==="dlgTunnel") return openTunnel(null);
+  if(id==="dlgSettings") fillSettings();
+  $("#"+id).showModal();
+}
+
+/* ---- nạp file ---- */
+const drop=$("#drop"), fileIn=$("#fileIn");
+drop.onclick=()=>fileIn.click(); drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" ")fileIn.click()};
+drop.ondragover=e=>{e.preventDefault();drop.classList.add("over")}; drop.ondragleave=()=>drop.classList.remove("over");
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");upload(e.dataTransfer.files)};
+fileIn.onchange=()=>{upload(fileIn.files);fileIn.value=""};
+async function upload(list){
+  const files=await Promise.all([...list].map(async f=>({name:f.name,content:await f.text()})));
+  if(!files.length)return;
+  const m=$("#importMsg"); m.textContent="Đang nạp...";
+  try{
+    const r=await api("/api/confs/upload",{files});
+    let msg=`Đã nạp ${r.saved.length} file.`;
+    if($("#autoCreate").checked&&r.saved.length){
+      const c=await api("/api/tunnels/bulk_create",{confs:r.saved,enabled:true,random_server:true});
+      msg+=` Đã tạo ${c.created.length} tunnel.`;
+    }
+    if(r.errors.length) msg+=" Lỗi: "+r.errors.join("; ");
+    m.textContent=msg; refresh();
+  }catch(x){m.textContent=x.message}
+}
+
+/* ---- tạo/sửa ---- */
+function openTunnel(id){
+  editId=id; const f=$("#fTunnel"); f.reset(); $("#tunnelErr").textContent="";
+  const t=id?S.tunnels.find(x=>x.id===id):null;
+  $("#tunnelTitle").textContent=t?"Sửa tunnel":"Tạo tunnel"; $("#tunnelSave").textContent=t?"Lưu thay đổi":"Tạo tunnel";
+  $("#enableRow").hidden=!!t;
+  const sel=new Set(t?t.confs:[]);
+  $("#pick").innerHTML=S.confs.length?S.confs.map(c=>`<label><input type="checkbox" value="${esc(c.name)}" ${sel.has(c.name)?"checked":""}>${esc(c.name)}<small>${esc(c.endpoint)}</small></label>`).join(""):`<label>Chưa có file — hãy nạp file .conf trước</label>`;
+  if(t){for(const k of["name","socks_port","http_port","username","password","bind","rotate_minutes"])f.elements[k].value=t[k];f.elements.random_server.checked=t.random_server}
+  $("#dlgTunnel").showModal();
+}
+$("#fTunnel").onsubmit=async e=>{
+  e.preventDefault(); const f=e.target, v=k=>f.elements[k].value;
+  const body={name:v("name"),socks_port:+v("socks_port")||0,http_port:+v("http_port")||0,username:v("username"),password:v("password"),
+    bind:v("bind"),rotate_minutes:+v("rotate_minutes")||0,random_server:f.elements.random_server.checked,enabled:f.elements.enabled.checked,
+    confs:$$("#pick input:checked").map(i=>i.value)};
+  try{await api(editId?`/api/tunnels/${editId}/update`:"/api/tunnels",body);$("#dlgTunnel").close();toast(editId?"Đã lưu thay đổi":"Đã tạo tunnel");refresh()}
+  catch(x){$("#tunnelErr").textContent=x.message}
+};
+
+/* ---- xuất ---- */
+$("#btnExport").onclick=()=>{$("#exHost").value=S.settings.export_host||"127.0.0.1";$("#dlgExport").showModal();loadExport()};
+$$("#segProto button").forEach(b=>b.onclick=()=>{proto=b.dataset.v;$$("#segProto button").forEach(x=>x.setAttribute("aria-pressed",x===b));relabel();loadExport()});
+function relabel(){$$("#fmt option").forEach(o=>o.textContent=o.textContent.replace(/^(socks5|http):/,proto+":"))}
+$("#fmt").onchange=loadExport;
+$("#exHost").onchange=async()=>{await api("/api/settings",{export_host:$("#exHost").value.trim()});await refresh();loadExport()};
+async function loadExport(){
+  const ids=[...picked].join(",");
+  $("#exOut").value=await api(`/api/export?fmt=${$("#fmt").value}&proto=${proto}&ids=${ids}`);
+}
+$("#exCopy").onclick=()=>copy($("#exOut").value,"Đã sao chép danh sách proxy");
+
+/* ---- nhật ký ---- */
+async function openLog(id){logId=id;const t=S.tunnels.find(x=>x.id===id);$("#logTitle").textContent="Nhật ký: "+t.name;$("#dlgLog").showModal();loadLog()}
+async function loadLog(){const r=await api(`/api/tunnels/${logId}/log`);const o=$("#logOut");o.textContent=r.log||"(trống)";o.scrollTop=o.scrollHeight}
+$("#logRefresh").onclick=loadLog;
+
+/* ---- cài đặt ---- */
+function fillSettings(){
+  const f=$("#fSettings"), s=S.settings;
+  for(const k of["health_interval","fail_threshold","socks_base","http_base","keepalive","ui_port","check_url","ui_host"])f.elements[k].value=s[k];
+  f.elements.ui_password.value="";
+  f.elements.ui_password.placeholder=S.has_password?"Để trống = giữ nguyên":"Chưa đặt";
+  $("#wpBox").innerHTML=`<div class="banner" style="margin:0;border-left-color:${S.wireproxy?"var(--ok)":"var(--warn)"}"><span>wireproxy: <b>${esc(S.wireproxy||"chưa có")}</b>. IP LAN của máy này: <b>${esc(S.lan_ip)}</b></span><button type="button" class="btn small" id="dlWp2">${S.wireproxy?"Cập nhật":"Tải wireproxy"}</button></div>`;
+  $("#dlWp2").onclick=downloadWp;
+}
+$("#fSettings").onsubmit=async e=>{
+  e.preventDefault(); const f=e.target, body={};
+  for(const k of["health_interval","fail_threshold","socks_base","http_base","keepalive","ui_port"])body[k]=+f.elements[k].value;
+  body.check_url=f.elements.check_url.value.trim(); body.ui_host=f.elements.ui_host.value;
+  if(f.elements.ui_password.value) body.ui_password=f.elements.ui_password.value;
+  if(body.ui_host==="0.0.0.0"&&!S.has_password&&!body.ui_password){toast("Mở Web UI ra LAN cần đặt mật khẩu");return}
+  try{await api("/api/settings",body);$("#dlgSettings").close();toast("Đã lưu cài đặt");refresh()}catch(x){toast(x.message)}
+};
+$("#btnQuit").onclick=async()=>{if(!confirm("Tắt ứng dụng và toàn bộ proxy?"))return;await api("/api/shutdown",{}).catch(()=>{});document.body.innerHTML='<div class="wrap"><h1 style="font:600 26px var(--cond)">Đã tắt Surf Proxy Manager</h1><p>Chạy lại bằng file start_hidden.vbs.</p></div>'};
+async function downloadWp(){
+  toast("Đang tải wireproxy từ GitHub...");
+  try{const r=await api("/api/wireproxy/download",{});toast("Đã cài "+r.version);refresh();if($("#dlgSettings").open)setTimeout(fillSettings,300)}catch(x){toast(x.message)}
+}
+
+bindOpeners(); refresh(); setInterval(()=>{if(!document.hidden)refresh()},2000);
+</script>
+</body>
+</html>
