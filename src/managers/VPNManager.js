@@ -86,9 +86,15 @@ export class VPNManager {
       const configDir = '/etc/wireguard';
       const configFile = path.join(configDir, 'surfshark.conf');
 
-      // Download or use stored Surfshark config
-      const config = await this.getSurfsharkWireGuardConfig();
-      await fs.writeFile(configFile, config, { mode: 0o600 });
+      // Check if config file exists
+      try {
+        await fs.access(configFile);
+        this.logger.info('Using existing WireGuard config file');
+      } catch {
+        this.logger.warn('WireGuard config file not found at ' + configFile);
+        this.logger.info('Please upload WireGuard config using the Web UI');
+        throw new Error('WireGuard config file not found. Please upload it via Web UI.');
+      }
 
       // Bring up WireGuard interface
       await execAsync('sudo wg-quick up surfshark');
@@ -106,22 +112,27 @@ export class VPNManager {
       const configDir = '/etc/openvpn/client';
       const configFile = path.join(configDir, `surfshark-${this.currentLocation}.ovpn`);
 
-      // Download Surfshark OpenVPN config
-      const config = await this.getSurfsharkOpenVPNConfig();
-      await fs.mkdir(configDir, { recursive: true });
-      await fs.writeFile(configFile, config, { mode: 0o600 });
+      // Check if config file exists
+      try {
+        await fs.access(configFile);
+        this.logger.info('Using existing OpenVPN config file');
+      } catch {
+        this.logger.warn('OpenVPN config file not found at ' + configFile);
+        this.logger.info('Please upload OpenVPN config using the Web UI');
+        throw new Error('OpenVPN config file not found. Please upload it via Web UI.');
+      }
 
-      // Create credentials file
+      // Create credentials file if not exists
       const credsFile = path.join(configDir, 'surfshark-creds.txt');
-      const creds = `${process.env.SURFSHARK_USER}\n${process.env.SURFSHARK_PASS}`;
-      await fs.writeFile(credsFile, creds, { mode: 0o600 });
-
-      // Update OpenVPN config to use credentials file
-      const configContent = config.replace(
-        /<auth-user-pass>/,
-        `<auth-user-pass>${credsFile}</auth-user-pass>`
-      );
-      await fs.writeFile(configFile, configContent, { mode: 0o600 });
+      try {
+        await fs.access(credsFile);
+      } catch {
+        if (process.env.SURFSHARK_USER && process.env.SURFSHARK_PASS) {
+          const creds = `${process.env.SURFSHARK_USER}\n${process.env.SURFSHARK_PASS}`;
+          await fs.writeFile(credsFile, creds, { mode: 0o600 });
+          this.logger.info('Created credentials file from .env');
+        }
+      }
 
       // Start OpenVPN
       this.vpnProcess = spawn('sudo', [

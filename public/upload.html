@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload VPN Config - VPN to Proxy Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: monospace;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        textarea:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            background: #f3f4f6;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .file-name {
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab-button {
+            padding: 12px 20px;
+            border: none;
+            background: none;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .back-button {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Back to Dashboard</a>
+
+        <header>
+            <h1>📤 Upload VPN Config</h1>
+            <p>Upload your Surfshark WireGuard or OpenVPN configuration files</p>
+        </header>
+
+        <div id="message"></div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('wireguard')">🔒 WireGuard</button>
+                <button class="tab-button" onclick="switchTab('openvpn')">🔐 OpenVPN</button>
+                <button class="tab-button" onclick="switchTab('credentials')">🔑 Credentials</button>
+            </div>
+
+            <!-- WireGuard Tab -->
+            <div id="wireguard" class="tab-content active">
+                <h2>WireGuard Configuration</h2>
+                <div class="alert alert-info">
+                    <strong>How to get WireGuard config:</strong>
+                    <ol style="margin-top: 10px; margin-left: 20px;">
+                        <li>Go to <a href="https://my.surfshark.com" target="_blank">my.surfshark.com</a></li>
+                        <li>Account → VPN Credentials</li>
+                        <li>WireGuard Public Keys section</li>
+                        <li>Add new key if needed</li>
+                        <li>Copy the config content and paste below</li>
+                    </ol>
+                </div>
+
+                <form onsubmit="uploadWireGuard(event)">
+                    <div class="form-group">
+                        <label for="wg-config">WireGuard Config Content</label>
+                        <textarea id="wg-config" placeholder="[Interface]
+PrivateKey = ...
+Address = ...
+
+[Peer]
+PublicKey = ...
+Endpoint = ..." required></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Upload WireGuard Config</button>
+                        <button type="reset" class="btn-secondary">Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- OpenVPN Tab -->
+            <div id="openvpn" class="tab-content">
+                <h2>OpenVPN Configuration</h2>
+                <div class="alert alert-info">
+                    <strong>How to get OpenVPN config:</strong>
+                    <ol style="margin-top: 10px; margin-left: 20px;">
+                        <li>Download from <a href="https://surfshark.com/support/how-setup-surfshark-manually" target="_blank">Surfshark Support</a></li>
+                        <li>Or get TCP config from Account → VPN Credentials</li>
+                        <li>Copy .ovpn file content and paste below</li>
+                    </ol>
+                </div>
+
+                <form onsubmit="uploadOpenVPN(event)">
+                    <div class="form-group">
+                        <label for="ovpn-location">Location/Name (optional)</label>
+                        <input type="text" id="ovpn-location" placeholder="e.g., us-nyc (default)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ovpn-config">OpenVPN Config Content (.ovpn)</label>
+                        <textarea id="ovpn-config" placeholder="client
+proto tcp
+remote ...
+..." required></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Upload OpenVPN Config</button>
+                        <button type="reset" class="btn-secondary">Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Credentials Tab -->
+            <div id="credentials" class="tab-content">
+                <h2>Surfshark Credentials</h2>
+                <div class="alert alert-info">
+                    <strong>Your Surfshark credentials:</strong>
+                    <p style="margin-top: 10px;">
+                        Find these in Account → VPN Credentials on <a href="https://my.surfshark.com" target="_blank">my.surfshark.com</a>
+                    </p>
+                </div>
+
+                <form onsubmit="uploadCredentials(event)">
+                    <div class="form-group">
+                        <label for="cred-username">Surfshark Username/Email</label>
+                        <input type="text" id="cred-username" placeholder="your_email@example.com" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cred-password">Surfshark Password</label>
+                        <input type="password" id="cred-password" placeholder="••••••••" required />
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Upload Credentials</button>
+                        <button type="reset" class="btn-secondary">Clear</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📚 Next Steps</h2>
+            <ol style="margin-left: 20px; color: #666;">
+                <li>Upload WireGuard OR OpenVPN config</li>
+                <li>Upload credentials (optional, if using OpenVPN)</li>
+                <li>Restart the application</li>
+                <li>Return to dashboard and check VPN status</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = localStorage.getItem('apiKey') || '';
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        async function uploadWireGuard(event) {
+            event.preventDefault();
+            const config = document.getElementById('wg-config').value;
+
+            try {
+                const response = await fetch('/api/config/upload/wireguard', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({ config })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('✅ WireGuard config uploaded successfully! You may need to restart the application.', 'success');
+                    document.getElementById('wg-config').value = '';
+                } else {
+                    showMessage('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Upload failed: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadOpenVPN(event) {
+            event.preventDefault();
+            const config = document.getElementById('ovpn-config').value;
+            const location = document.getElementById('ovpn-location').value || 'default';
+
+            try {
+                const response = await fetch('/api/config/upload/openvpn', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({ config, location })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('✅ OpenVPN config uploaded successfully! You may need to restart the application.', 'success');
+                    document.getElementById('ovpn-config').value = '';
+                    document.getElementById('ovpn-location').value = '';
+                } else {
+                    showMessage('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Upload failed: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadCredentials(event) {
+            event.preventDefault();
+            const username = document.getElementById('cred-username').value;
+            const password = document.getElementById('cred-password').value;
+
+            try {
+                const response = await fetch('/api/config/upload/credentials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('✅ Credentials uploaded successfully!', 'success');
+                    document.getElementById('cred-username').value = '';
+                    document.getElementById('cred-password').value = '';
+                } else {
+                    showMessage('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Upload failed: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

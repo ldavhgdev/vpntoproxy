@@ -131,5 +131,65 @@ export default function createApiRoutes(vpnManager, proxyManager, systemMonitor)
     });
   });
 
+  // Upload VPN config files
+  router.post('/config/upload/wireguard', async (req, res) => {
+    try {
+      const { config } = req.body;
+
+      if (!config) {
+        return res.status(400).json({ error: 'Config content required' });
+      }
+
+      // Write WireGuard config
+      const fs = await import('fs/promises');
+      await fs.writeFile('/etc/wireguard/surfshark.conf', config, { mode: 0o600 });
+
+      res.json({ success: true, message: 'WireGuard config uploaded successfully' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post('/config/upload/openvpn', async (req, res) => {
+    try {
+      const { config, location } = req.body;
+
+      if (!config) {
+        return res.status(400).json({ error: 'Config content required' });
+      }
+
+      const loc = location || 'default';
+      const configPath = `/etc/openvpn/client/surfshark-${loc}.ovpn`;
+
+      // Write OpenVPN config
+      const fs = await import('fs/promises');
+      await fs.mkdir('/etc/openvpn/client', { recursive: true });
+      await fs.writeFile(configPath, config, { mode: 0o600 });
+
+      res.json({ success: true, message: `OpenVPN config uploaded to ${configPath}` });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post('/config/upload/credentials', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+      }
+
+      // Write credentials file
+      const fs = await import('fs/promises');
+      const credsContent = `${username}\n${password}`;
+      await fs.writeFile('/etc/openvpn/client/surfshark-creds.txt', credsContent, { mode: 0o600 });
+
+      res.json({ success: true, message: 'Credentials uploaded successfully' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 }
