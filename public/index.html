@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN to Proxy Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .status-connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-pending {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .status-value {
+            color: #333;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d1d5db;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .select-group {
+            margin-top: 15px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .chart-container {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .chart-title {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .connection-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .connection-item {
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .logs-container {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+        }
+
+        .log-timestamp {
+            color: #6b7280;
+        }
+
+        .log-level-info {
+            color: #3b82f6;
+        }
+
+        .log-level-warn {
+            color: #f59e0b;
+        }
+
+        .log-level-error {
+            color: #ef4444;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab-button {
+            padding: 12px 20px;
+            border: none;
+            background: none;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f0f0f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            button {
+                min-width: 100px;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 VPN to Proxy Manager</h1>
+            <p>Manage Surfshark VPN connections and SOCKS5/HTTP proxies</p>
+        </header>
+
+        <div class="dashboard">
+            <!-- VPN Status Card -->
+            <div class="card">
+                <h2><span class="icon">🔒</span> VPN Status</h2>
+                <div id="vpn-status-container">
+                    <div class="spinner"></div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-success" onclick="app.connectVPN()">Connect</button>
+                    <button class="btn-danger" onclick="app.disconnectVPN()">Disconnect</button>
+                    <button class="btn-primary" onclick="app.rotateIP()">Rotate IP</button>
+                </div>
+                <div class="select-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Location:</label>
+                    <select id="location-select" onchange="app.changeLocation()">
+                        <option>Loading locations...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Proxy Status Card -->
+            <div class="card">
+                <h2><span class="icon">🌐</span> Proxy Servers</h2>
+                <div id="proxy-status-container">
+                    <div class="spinner"></div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Active Connections</div>
+                    <div style="font-size: 1.5em; font-weight: 600; color: #667eea;" id="connection-count">0</div>
+                </div>
+            </div>
+
+            <!-- System Resources Card -->
+            <div class="card">
+                <h2><span class="icon">💻</span> System Resources</h2>
+                <div id="system-status-container">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Network Connections Card -->
+            <div class="card">
+                <h2><span class="icon">📊</span> Active Connections</h2>
+                <div class="connection-list" id="connections-list">
+                    <div class="connection-item">Waiting for connections...</div>
+                </div>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="card">
+                <h2><span class="icon">⚙️</span> Settings</h2>
+                <div class="status-item">
+                    <span class="status-label">Auto Rotation</span>
+                    <span class="status-value" id="auto-rotate-status">--</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Rotation Interval</span>
+                    <span class="status-value" id="rotation-interval">--</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Protocol</span>
+                    <span class="status-value" id="protocol-status">--</span>
+                </div>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="app.showLogs()">View Logs</button>
+                    <button class="btn-secondary" onclick="app.exportConfig()">Export Config</button>
+                </div>
+            </div>
+
+            <!-- Logs Card -->
+            <div class="card">
+                <h2><span class="icon">📝</span> Activity Logs</h2>
+                <div class="logs-container" id="logs-container">
+                    <div class="log-entry">
+                        <span class="log-timestamp">[00:00:00]</span>
+                        <span class="log-level-info">[INFO]</span>
+                        System initialized
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VPNProxyManager {
+            constructor() {
+                this.ws = null;
+                this.apiKey = localStorage.getItem('apiKey') || '';
+                this.logs = [];
+                this.init();
+            }
+
+            init() {
+                this.connectWebSocket();
+                this.loadLocations();
+                this.loadInitialData();
+                this.addLog('System initialized', 'info');
+            }
+
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    this.addLog('Connected to WebSocket', 'info');
+                };
+
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'update') {
+                        this.updateDashboard(data.data);
+                    }
+                };
+
+                this.ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    this.addLog('WebSocket error: ' + error, 'error');
+                };
+
+                this.ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    this.addLog('Disconnected from WebSocket', 'warn');
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                };
+            }
+
+            async loadInitialData() {
+                try {
+                    const response = await this.apiCall('/api/status');
+                    this.updateDashboard(response);
+                } catch (error) {
+                    this.addLog('Failed to load initial data: ' + error.message, 'error');
+                }
+            }
+
+            async loadLocations() {
+                try {
+                    const response = await this.apiCall('/api/vpn/locations');
+                    const select = document.getElementById('location-select');
+                    select.innerHTML = response.locations
+                        .map(loc => `<option value="${loc}">${loc}</option>`)
+                        .join('');
+                    this.addLog('Locations loaded', 'info');
+                } catch (error) {
+                    this.addLog('Failed to load locations: ' + error.message, 'error');
+                }
+            }
+
+            updateDashboard(data) {
+                if (data.vpn) {
+                    this.updateVPNStatus(data.vpn);
+                }
+                if (data.proxy) {
+                    this.updateProxyStatus(data.proxy);
+                }
+                if (data.system) {
+                    this.updateSystemStatus(data.system);
+                }
+            }
+
+            updateVPNStatus(status) {
+                const html = `
+                    <div class="status-item">
+                        <span class="status-label">Status</span>
+                        <span class="status-badge ${status.isConnected ? 'status-connected' : 'status-disconnected'}">
+                            ${status.isConnected ? '✓ Connected' : '✗ Disconnected'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Protocol</span>
+                        <span class="status-value">${status.protocol.toUpperCase()}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Location</span>
+                        <span class="status-value">${status.location}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current IP</span>
+                        <span class="status-value">${status.currentIP || 'Fetching...'}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Rotation</span>
+                        <span class="status-value">${status.lastRotation ? new Date(status.lastRotation).toLocaleString() : 'Never'}</span>
+                    </div>
+                `;
+                document.getElementById('vpn-status-container').innerHTML = html;
+                document.getElementById('protocol-status').textContent = status.protocol.toUpperCase();
+            }
+
+            updateProxyStatus(status) {
+                const html = `
+                    <div class="status-item">
+                        <span class="status-label">SOCKS5 Port</span>
+                        <span class="status-badge status-connected">${status.socksPort}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">HTTP Proxy Port</span>
+                        <span class="status-badge status-connected">${status.httpPort}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Active Connections</span>
+                        <span class="status-value">${status.activeConnections}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">SOCKS5 Server</span>
+                        <span class="status-badge ${status.socksServerRunning ? 'status-connected' : 'status-disconnected'}">
+                            ${status.socksServerRunning ? '✓ Running' : '✗ Stopped'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">HTTP Server</span>
+                        <span class="status-badge ${status.httpServerRunning ? 'status-connected' : 'status-disconnected'}">
+                            ${status.httpServerRunning ? '✓ Running' : '✗ Stopped'}
+                        </span>
+                    </div>
+                `;
+                document.getElementById('proxy-status-container').innerHTML = html;
+                document.getElementById('connection-count').textContent = status.activeConnections;
+            }
+
+            updateSystemStatus(status) {
+                const memUsage = status.memory ? status.memory.usagePercent : 0;
+                const cpuUsage = status.cpu ? status.cpu.usage : 0;
+
+                const html = `
+                    <div class="status-item">
+                        <span class="status-label">Memory Usage</span>
+                        <span class="status-value">${memUsage}%</span>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Memory</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${memUsage}%"></div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">CPU Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${cpuUsage}%"></div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('system-status-container').innerHTML = html;
+            }
+
+            async rotateIP() {
+                try {
+                    this.addLog('Rotating IP...', 'info');
+                    const response = await this.apiCall('/api/vpn/rotate', 'POST');
+                    this.addLog('IP rotated successfully', 'info');
+                } catch (error) {
+                    this.addLog('IP rotation failed: ' + error.message, 'error');
+                }
+            }
+
+            async changeLocation() {
+                const location = document.getElementById('location-select').value;
+                try {
+                    this.addLog(`Changing location to ${location}...`, 'info');
+                    await this.apiCall(`/api/vpn/location/${location}`, 'POST');
+                    this.addLog(`Location changed to ${location}`, 'info');
+                } catch (error) {
+                    this.addLog(`Location change failed: ${error.message}`, 'error');
+                }
+            }
+
+            async connectVPN() {
+                try {
+                    this.addLog('Connecting to VPN...', 'info');
+                    await this.apiCall('/api/vpn/connect', 'POST');
+                    this.addLog('VPN connected successfully', 'info');
+                } catch (error) {
+                    this.addLog(`VPN connection failed: ${error.message}`, 'error');
+                }
+            }
+
+            async disconnectVPN() {
+                try {
+                    this.addLog('Disconnecting from VPN...', 'info');
+                    await this.apiCall('/api/vpn/disconnect', 'POST');
+                    this.addLog('VPN disconnected', 'info');
+                } catch (error) {
+                    this.addLog(`VPN disconnection failed: ${error.message}`, 'error');
+                }
+            }
+
+            async apiCall(endpoint, method = 'GET', data = null) {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.apiKey}`
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(endpoint, options);
+
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.statusText}`);
+                }
+
+                return await response.json();
+            }
+
+            addLog(message, level = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = {
+                    timestamp,
+                    level,
+                    message
+                };
+
+                this.logs.unshift(entry);
+                if (this.logs.length > 100) {
+                    this.logs.pop();
+                }
+
+                this.updateLogs();
+            }
+
+            updateLogs() {
+                const logsContainer = document.getElementById('logs-container');
+                logsContainer.innerHTML = this.logs
+                    .map(log => `
+                        <div class="log-entry">
+                            <span class="log-timestamp">[${log.timestamp}]</span>
+                            <span class="log-level-${log.level}">[${log.level.toUpperCase()}]</span>
+                            ${log.message}
+                        </div>
+                    `)
+                    .join('');
+                logsContainer.scrollTop = 0;
+            }
+
+            showLogs() {
+                alert('Logs displayed in the Logs card above');
+            }
+
+            exportConfig() {
+                const config = {
+                    timestamp: new Date().toISOString(),
+                    vpn: {
+                        protocol: document.getElementById('protocol-status').textContent,
+                        location: document.getElementById('location-select').value
+                    },
+                    proxy: {
+                        socks5Port: 1080,
+                        httpPort: 8888
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vpn-proxy-config-${Date.now()}.json`;
+                a.click();
+                this.addLog('Configuration exported', 'info');
+            }
+        }
+
+        // Initialize the app
+        const app = new VPNProxyManager();
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  vpn-proxy:
+    build: .
+    container_name: vpn-to-proxy-manager
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - MANAGEMENT_PORT=3000
+      - SOCKS5_PORT=1080
+      - HTTP_PROXY_PORT=8888
+      - VPN_PROTOCOL=wireguard
+      - SURFSHARK_USER=${SURFSHARK_USER}
+      - SURFSHARK_PASS=${SURFSHARK_PASS}
+      - API_KEY=${API_KEY}
+      - AUTO_ROTATE=true
+      - ROTATE_INTERVAL_MINUTES=30
+      - ROTATE_ON_CONNECTION_FAIL=true
+      - RECOVERY_CHECK_INTERVAL=60
+      - RECOVERY_MAX_ATTEMPTS=5
+
+    ports:
+      - "3000:3000"      # Web UI
+      - "1080:1080"      # SOCKS5
+      - "8888:8888"      # HTTP Proxy
+
+    volumes:
+      - ./logs:/var/log/vpn-to-proxy
+      - ./data:/var/lib/vpn-to-proxy
+      - /etc/wireguard:/etc/wireguard:ro
+
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+      - SYS_ADMIN
+
+    sysctls:
+      - net.ipv4.ip_forward=1
+
+    networks:
+      - vpn-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  vpn-network:
+    driver: bridge
