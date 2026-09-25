@@ -30,7 +30,7 @@ apt-get install -y wireguard wireguard-tools
 
 # Install OpenVPN (optional)
 echo "[4/8] Installing OpenVPN..."
-apt-get install -y openvpn openvpn-auth-oauth2
+apt-get install -y openvpn
 
 # Install curl for IP checking
 echo "[5/8] Installing curl..."
