@@ -594,6 +594,23 @@ class ProxyManager extends EventEmitter {
     }
   }
 
+  getWireproxyVersion() {
+    try {
+      if (!fs.existsSync(config.wireproxyBin)) {
+        return null;
+      }
+      const result = require('child_process').spawnSync(config.wireproxyBin, ['--version'], {
+        timeout: 5000,
+        encoding: 'utf8'
+      });
+      if (result.error) return null;
+      const output = (result.stdout || result.stderr || '').trim();
+      return output.split('\n').pop() || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   snapshot() {
     const items = [];
 
@@ -632,6 +649,7 @@ class ProxyManager extends EventEmitter {
       has_password: !!this.settings.ui_password,
       confs: this.listConfigs(),
       lan_ip: getLanIP(),
+      wireproxy: this.getWireproxyVersion(),
     };
   }
 
