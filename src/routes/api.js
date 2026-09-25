@@ -134,7 +134,7 @@ export default function createApiRoutes(vpnManager, proxyManager, systemMonitor)
   // Upload VPN config files
   router.post('/config/upload/wireguard', async (req, res) => {
     try {
-      const { config } = req.body;
+      const { config, autoConnect } = req.body;
 
       if (!config) {
         return res.status(400).json({ error: 'Config content required' });
@@ -144,7 +144,21 @@ export default function createApiRoutes(vpnManager, proxyManager, systemMonitor)
       const fs = await import('fs/promises');
       await fs.writeFile('/etc/wireguard/surfshark.conf', config, { mode: 0o600 });
 
-      res.json({ success: true, message: 'WireGuard config uploaded successfully' });
+      let message = 'WireGuard config uploaded successfully';
+      let vpnStatus = null;
+
+      // Auto-connect if requested
+      if (autoConnect) {
+        const connected = await vpnManager.reconnectVPN();
+        message += connected ? ' and VPN connected!' : ' but VPN connection failed - check logs';
+        vpnStatus = await vpnManager.getStatus();
+      }
+
+      res.json({
+        success: true,
+        message,
+        vpnStatus
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -152,7 +166,7 @@ export default function createApiRoutes(vpnManager, proxyManager, systemMonitor)
 
   router.post('/config/upload/openvpn', async (req, res) => {
     try {
-      const { config, location } = req.body;
+      const { config, location, autoConnect } = req.body;
 
       if (!config) {
         return res.status(400).json({ error: 'Config content required' });
@@ -166,7 +180,21 @@ export default function createApiRoutes(vpnManager, proxyManager, systemMonitor)
       await fs.mkdir('/etc/openvpn/client', { recursive: true });
       await fs.writeFile(configPath, config, { mode: 0o600 });
 
-      res.json({ success: true, message: `OpenVPN config uploaded to ${configPath}` });
+      let message = `OpenVPN config uploaded to ${configPath}`;
+      let vpnStatus = null;
+
+      // Auto-connect if requested
+      if (autoConnect) {
+        const connected = await vpnManager.reconnectVPN();
+        message += connected ? ' and VPN connected!' : ' but VPN connection failed - check logs';
+        vpnStatus = await vpnManager.getStatus();
+      }
+
+      res.json({
+        success: true,
+        message,
+        vpnStatus
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

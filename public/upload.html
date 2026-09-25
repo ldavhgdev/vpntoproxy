@@ -283,6 +283,13 @@ PublicKey = ...
 Endpoint = ..." required></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 400;">
+                            <input type="checkbox" id="wg-auto-connect" style="width: auto;" />
+                            Auto-connect VPN after upload
+                        </label>
+                    </div>
+
                     <div class="button-group">
                         <button type="submit" class="btn-primary">Upload WireGuard Config</button>
                         <button type="reset" class="btn-secondary">Clear</button>
@@ -314,6 +321,13 @@ Endpoint = ..." required></textarea>
 proto tcp
 remote ...
 ..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 400;">
+                            <input type="checkbox" id="ovpn-auto-connect" style="width: auto;" />
+                            Auto-connect VPN after upload
+                        </label>
                     </div>
 
                     <div class="button-group">
@@ -391,6 +405,7 @@ remote ...
         async function uploadWireGuard(event) {
             event.preventDefault();
             const config = document.getElementById('wg-config').value;
+            const autoConnect = document.getElementById('wg-auto-connect').checked;
 
             try {
                 const response = await fetch('/api/config/upload/wireguard', {
@@ -399,14 +414,15 @@ remote ...
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${API_KEY}`
                     },
-                    body: JSON.stringify({ config })
+                    body: JSON.stringify({ config, autoConnect })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage('✅ WireGuard config uploaded successfully! You may need to restart the application.', 'success');
+                    showMessage('✅ ' + data.message, 'success');
                     document.getElementById('wg-config').value = '';
+                    document.getElementById('wg-auto-connect').checked = false;
                 } else {
                     showMessage('❌ Error: ' + data.error, 'error');
                 }
@@ -419,6 +435,7 @@ remote ...
             event.preventDefault();
             const config = document.getElementById('ovpn-config').value;
             const location = document.getElementById('ovpn-location').value || 'default';
+            const autoConnect = document.getElementById('ovpn-auto-connect').checked;
 
             try {
                 const response = await fetch('/api/config/upload/openvpn', {
@@ -427,15 +444,16 @@ remote ...
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${API_KEY}`
                     },
-                    body: JSON.stringify({ config, location })
+                    body: JSON.stringify({ config, location, autoConnect })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage('✅ OpenVPN config uploaded successfully! You may need to restart the application.', 'success');
+                    showMessage('✅ ' + data.message, 'success');
                     document.getElementById('ovpn-config').value = '';
                     document.getElementById('ovpn-location').value = '';
+                    document.getElementById('ovpn-auto-connect').checked = false;
                 } else {
                     showMessage('❌ Error: ' + data.error, 'error');
                 }

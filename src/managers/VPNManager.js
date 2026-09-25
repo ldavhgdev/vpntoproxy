@@ -21,68 +21,49 @@ export class VPNManager {
 
   async initialize() {
     try {
-      this.logger.info(`Initializing VPN with ${this.protocol} protocol...`);
-
-      // Check if VPN config file exists FIRST
-      await this.checkConfigExists();
+      this.logger.info(`Initializing VPN Manager with ${this.protocol} protocol...`);
 
       // Check if VPN tools are installed
       await this.checkDependencies();
 
-      // Connect to VPN
-      await this.connect();
+      // Try to connect to VPN if config exists
+      const configExists = await this.configFileExists();
+      if (configExists) {
+        this.logger.info('VPN config found, attempting to connect...');
+        try {
+          await this.connect();
+          this.isConnected = true;
+          this.connectionAttempts = 0;
+          this.logger.info('✅ VPN connected successfully');
 
-      this.isConnected = true;
-      this.connectionAttempts = 0;
+          // Start recovery monitor
+          this.startRecoveryMonitor();
+        } catch (error) {
+          this.logger.warn({ error }, 'VPN connection failed, will retry when config is updated');
+          this.isConnected = false;
+        }
+      } else {
+        this.logger.info('⏳ VPN config not found. Upload config via Web UI to activate VPN.');
+        this.logger.info('📤 Upload page: http://YOUR_VPS_IP:3000/upload.html');
+      }
 
-      // Start recovery monitor
-      this.startRecoveryMonitor();
-
-      this.logger.info('✅ VPN initialized successfully');
+      this.logger.info('✅ VPN Manager initialized (VPN optional)');
     } catch (error) {
-      this.logger.error({ error }, 'VPN initialization failed');
-      throw error;
+      this.logger.error({ error }, 'VPN Manager initialization error');
+      // Don't throw - allow app to continue without VPN
     }
   }
 
-  async checkConfigExists() {
+  async configFileExists() {
     const configPath = this.protocol === 'wireguard'
       ? '/etc/wireguard/surfshark.conf'
       : '/etc/openvpn/client/surfshark-default.ovpn';
 
     try {
       await fs.access(configPath);
-      this.logger.info(`✅ Config file found: ${configPath}`);
+      return true;
     } catch {
-      const errorMsg = `
-╔════════════════════════════════════════════════════════════════╗
-║  ❌ VPN CONFIG FILE NOT FOUND                                  ║
-╚════════════════════════════════════════════════════════════════╝
-
-VPN ${this.protocol.toUpperCase()} config file is required to start.
-
-Expected location: ${configPath}
-
-📤 UPLOAD INSTRUCTIONS:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. Go to Web UI: http://YOUR_VPS_IP:3000/upload.html
-
-2. Upload your ${this.protocol.toUpperCase()} config:
-   - For WireGuard: Get from https://my.surfshark.com → Account → VPN Credentials
-   - For OpenVPN: Download from Surfshark support page
-
-3. After uploading, restart the application
-
-4. The VPN will automatically connect on startup
-
-NEED HELP?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-See documentation: /opt/vpn-to-proxy/SURFSHARK_SETUP.md
-      `;
-
-      this.logger.error(errorMsg);
-      throw new Error(`VPN config file not found at ${configPath}`);
+      return false;
     }
   }
 
@@ -341,6 +322,32 @@ verb 3
     }, (parseInt(process.env.RECOVERY_CHECK_INTERVAL || 60)) * 1000);
 
     this.recoveryMonitorInterval = interval;
+  }
+
+  async reconnectVPN() {
+    try {
+      this.logger.info('Attempting to reconnect to VPN with updated config...');
+
+      // Disconnect if already connected
+      if (this.isConnected) {
+        await this.disconnect();
+      }
+
+      // Wait a moment
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Try to connect
+      await this.connect();
+      this.isConnected = true;
+      this.connectionAttempts = 0;
+
+      this.logger.info('✅ VPN reconnected successfully with new config');
+      return true;
+    } catch (error) {
+      this.logger.error({ error }, 'VPN reconnection failed');
+      this.isConnected = false;
+      return false;
+    }
   }
 
   getAvailableLocations() {
