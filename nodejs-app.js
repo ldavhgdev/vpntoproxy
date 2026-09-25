@@ -513,7 +513,11 @@ class ProxyManager extends EventEmitter {
       const wgPath = path.join(config.runtimeDir, `${tid}.wg.conf`);
       const wpPath = path.join(config.runtimeDir, `${tid}.wireproxy.conf`);
 
-      fs.writeFileSync(wgPath, buildRuntimeWireGuardConfig(confText, '0.0.0.0:51820', config.keepalive));
+      // Extract endpoint from config
+      const parsed = parseWireGuardConfig(confText);
+      const endpoint = parsed.peer?.endpoint || '0.0.0.0:51820';
+
+      fs.writeFileSync(wgPath, buildRuntimeWireGuardConfig(confText, endpoint, config.keepalive));
 
       const auth = tunnel.username ? `Username = ${tunnel.username}\nPassword = ${tunnel.password}\n` : '';
       fs.writeFileSync(wpPath,
@@ -531,7 +535,7 @@ class ProxyManager extends EventEmitter {
       });
 
       rt.status = 'starting';
-      rt.endpoint = '0.0.0.0:51820';
+      rt.endpoint = endpoint;
       rt.startedAt = Date.now();
       rt.fails = 0;
       rt.nextCheck = Date.now() + 3000;
